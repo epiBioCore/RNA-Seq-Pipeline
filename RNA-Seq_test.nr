@@ -17,7 +17,7 @@ Channel
 Channel
 	.fromPath("genes.gtf")
 	.ifEmpty { exit 1, "Cannot find gtf file" }
-	.into { star1_gtf; star2_gtf}
+	.into { star1_gtf; star2_gtf; stringtie_gtf; stringtieMerge_gtf; stringtieCompare_gtf; stringtieFPKM_gtf}
 
 Channel
 	.fromPath("genome.fa")
@@ -180,4 +180,132 @@ process STAR2pass {
 
 }
 
+/*
+* filtering bam files to contain only properly paired reads
+*/
 
+process filterBam {
+	publishDir "STAR2pass", mode : "copy"
+
+	input:
+		file bam from star2pass_aln
+
+	output:
+		file "${prefix}_filtered_sortedByCoord.out.bam" into filtered_bams_assembly,filtered_bams_quantify
+		file "*.bai" into bam_indices
+
+	script:
+		prefix = bam.toString() - ~/Aligned.sortedByCoord.out.bam/
+		"""
+		samtools view -b -f 0x2 $bam > ${prefix}_filtered_sortedByCoord.out.bam
+		samtools index ${prefix}_filtered_sortedByCoord.out.bam
+		"""
+}
+
+/*
+*stringtie assembly
+*/
+process stringtieAssembly {
+	publishDir "Assembly", mode: "copy"
+ 
+	input:
+		file bam from filtered_bams_assembly
+		file gtf from stringtie_gtf.collect()
+
+	output:
+		file "*gtf" into assembled_gtfs, assembled_transcripts_fn
+
+	script:
+
+		"""
+		stringtie -p 14 -G $gtf -o ${bam.baseName}.gtf $bam
+		"""
+}
+
+/*
+*create a file with the names of the gtf files
+*/
+
+assembled_transcripts_fn
+	.collectFile() {file -> ['mergedlist.txt', file.name + '\n'] }
+	.set {GTFfilenames}
+
+
+process stringtieMerge{
+	publishDir "Assembly", mode: "copy"
+
+	input:
+		file gtf_filenames from GTFfilenames
+		file gtf from stringtieMerge_gtf
+		file assembled from assembled_gtfs.toList()
+
+	output:
+		file "merged.gtf" into merged_gtf,merged_gtf_quant
+
+	script:
+		"""
+		stringtie --merge -p 14 -G $gtf -o merged.gtf $gtf_filenames		
+		"""
+}
+
+
+process gffcompare{
+	publishDir "Assembly", mode: "copy"
+
+	input:
+		file gtf from stringtieCompare_gtf
+		file merged from merged_gtf
+
+	output:
+		file "merged.*" into gtf_comparison
+
+	script:
+		"""
+		gffcompare -r $gtf -G -o merged $merged
+		"""
+
+}
+
+
+/*
+*quantifying transcripts
+*/
+
+process stringtieFPKM {
+	publishDir "Ballgown", mode: "copy"
+
+	input:
+		file bam from filtered_bams_quantify
+		file gtf from merged_gtf_quant.collect()		
+
+	output:
+		file "${bam.baseName}" into ballgown
+		file "${bam.baseName}_gene_abund.txt" into gene_abund
+
+	script:
+		"""
+		stringtie -p 8 -A ${bam.baseName}_gene_abund.txt -b ${bam.baseName} -G $gtf $bam
+		"""
+
+}
+/*
+* multiqc
+*/
+
+process multiqc {
+	publishDir "Reports", mode: "copy"
+	
+	input:
+		file fastqc from fastqc_results.collect()
+		file star_log from star2pass_logs.collect()
+
+	output:
+		file "multiqc_report.html" into multiqc_report
+
+	script:
+		"""
+		multiqc .
+		"""
+}
+
+	
