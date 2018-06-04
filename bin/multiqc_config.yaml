@@ -1,0 +1,66 @@
+#Title
+title: "RNA-Seq Report"
+subtitle: null
+
+top_modules:
+    - 'generalstats'
+    - 'fastqc'
+    - 'trimmomatic'
+    - 'star'
+    - 'featurecounts'
+                 
+
+#---------------------------
+#Custom Data
+#--------------------------
+
+custom_content:
+    order:
+        - 'sensitivity_and_precision'
+        - 'missing_novel'
+        - 'pca'
+        - 'heatmap'
+        - 'DE_results'
+
+custom_data:
+    sensitivity_and_precision:
+        section_name: 'gffcompare merged stats'
+        description: 'sensitivity and precision statistics'
+        file_format: 'tsv'
+        plot_type: 'table'
+        pconfig:
+            id: 'gffcompare_sensitivity_precision'
+            title: 'Sensitivity and Precision'
+            xlab: 'sensitivity/precision'
+            ylab: 'Genomic context' 
+            stacking: null
+            cpswitch: False    
+
+    missing_novel:
+        section_name: 'missing and novel statistics from gffcompare'
+        description: 'Percentage of missing and novel statistics'
+        file_format: 'tsv'
+        plot_type: 'table'
+        pconfig:
+            id: 'gffcompare_missing_novel'
+            title: "Missing and Novel"
+            xlab: 'Percentage'
+            ylab: 'Genomic context'
+            stacking: null
+            cpswitch: False
+
+    DE_results:
+        section_name: 'Differential expression results'
+        description: 'Number of differentially expressed genes, calculated using DESeq2 with an adjusted p-value of 0.05'
+        file_format: 'tsv'
+        plot_type: 'table'
+        pconfig:
+            id: 'DESeq2_results'
+            title: 'Number of differentially expressed genes'        
+sp:
+    sensitivity_and_precision:
+        fn: 'sensitivity_and_precision_for_multiqc.tsv'
+    missing_novel:
+        fn: 'missing_novel_for_multiqc.tsv'
+    DE_results:
+        fn: 'DE_summary.txt'                
