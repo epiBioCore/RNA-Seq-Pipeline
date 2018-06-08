@@ -32,7 +32,7 @@ addMeans<-function(x,comp) {
   detable<-as.data.frame(x)
   
   ##get the two group names
-  groups<-unlist(strsplit(comp,"\\."))
+  groups<-unlist(strsplit(comp,"vs"))
   groups<-paste(groups,"mean",sep=".")
   means<-count_means[,groups]
   
@@ -52,10 +52,10 @@ sample_file<-str_split(args[grep("samples",args)],"=",simplify=T)[2]
 comparisons_file<-str_split(args[grep("comparisons",args)],"=",simplify=T)[2]
 
 if (grepl("featureCounts", count_file)) {
-counts<-read.delim(count_file,header=TRUE,stringsAsFactors=F,skip=1) 
+counts<-read.delim(count_file,header=TRUE,stringsAsFactors=F,skip=1,check.names=F) 
 rownames(counts)<-counts$Geneid
 counts<-counts[,-c(1:6)]
- colnames(counts)<-gsub("_filtered_sortedByCoord.out.bam","",colnames(counts))
+ colnames(counts)<-gsub("_filtered_sortedByCoord.out.bam|Aligned.*","",colnames(counts))
 } else {
 counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
 }
@@ -135,7 +135,7 @@ colnames(count_data) <- colData$replicate
 ## Additional lines will need to be added if you have more than two conditions
 
 count_means<-t(apply(count_data,1,function(x) tapply(x,colData(dds)$condition,mean,na.rm=T)))
-
+head(count_means)
 ##count means and counts should be in the same order, but just in case....
 count_means<-count_means[match(rownames(count_data),rownames(count_means)),]
 colnames(count_means) <- paste(colnames(count_means),"mean",sep=".")
@@ -207,8 +207,9 @@ write.table(for_mqc,file = "pca_for_mq.yaml",quote =F,row.names = F, col.names =
 contrasts<-lapply(seq(1:nrow(comparisons)),function(x) {
   c("condition",comparisons[x,"treat"],comparisons[x,"control"])
 })
-names(contrasts)<-paste(comparisons$treat,comparisons$control,sep=".")
+names(contrasts)<-paste(comparisons$treat,comparisons$control,sep="vs")
 
+resultsNames(dds)
 Res <- lapply(contrasts,function(x) results(dds,contrast=x,alpha = 0.05))
 Map(maPlot.lists,Res,names(Res))
 

@@ -100,17 +100,17 @@ if (params.genome) {
 }
 
 
-if (!params.noDE && params.samples) {
+if (params.samples) {
 	samples = file(params.samples)
 	if ( !samples.exists() ) {
 		exit 1, "Sample sheet not found: ${params.samples}"
 	} else {
 	Channel
 		.fromPath(params.samples)
-		.set { samples }
+		.into { mq_samples; samples }
 	}
-} else if (!params.noDE && !paramss.samples) {
-	exit 1, "A sample sheet is required to perform a differential exression analysis. No sample sheet specified"
+} else if (!paramss.samples) {
+	exit 1, "No sample sheet specified!"
 }
 
 if (!params.noDE && params.comparisons) {
@@ -357,8 +357,10 @@ process STAR2pass {
 
 /*
 * filtering bam files to contain only properly paired reads
+* only if data is paired end
 */
 
+if (!params.singleEnd) {
 process filterBam {
 	publishDir "STAR2pass", mode : "copy",
 		saveAs: {filename -> filename.indexOf(".sh") > 0 ? "${prefix}_commands.sh" : "$filename" }
@@ -367,7 +369,7 @@ process filterBam {
 		file bam from star2pass_aln
 
 	output:
-		file "${prefix}_filtered_sortedByCoord.out.bam" into filtered_bams_assembly,filtered_bams_quantify,filtered_bams_featureCounts
+		file "${prefix}_filtered_sortedByCoord.out.bam" into filtered_bams
 		file "*.bai" into bam_indices
 		file ".command.sh" into filtering_commands
 	script:
@@ -376,6 +378,22 @@ process filterBam {
 		samtools view -b -f 0x2 $bam > ${prefix}_filtered_sortedByCoord.out.bam
 		samtools index ${prefix}_filtered_sortedByCoord.out.bam
 		"""
+}
+}
+
+
+/*
+* if fastq files are paired-end, then the filtered bams will be input into the stringtie assembly,
+* otherwise the bam files from star
+*/
+
+if (params.singleEnd) {
+	star2pass_aln
+		.into{bams_assembly; bams_quantify; bams_featureCounts }
+} else {
+	filtered_bams
+		.into {bams_assembly; bams_quantify; bams_featureCounts }	
+	
 }
 
 /*
@@ -387,7 +405,7 @@ process stringtieAssembly {
 	publishDir "Assembly", mode: "copy",
  		saveAs: {filename -> filename.indexOf(".sh") > 0 ? "${prefix}_commands.sh" : "$filename" }
 	input:
-		file bam from filtered_bams_assembly
+		file bam from bams_assembly
 		file gtf from stringtie_gtf.collect()
 
 	output:
@@ -395,7 +413,7 @@ process stringtieAssembly {
 		file ".command.sh" into stringtieAssembly_commands
 
 	script:
-		prefix = bam.toString() - ~/_filtered.*/
+		prefix = bam.toString() - ~/_filtered.*|Aligned.*/
 		"""
 		stringtie -p 14 -G $gtf -o ${bam.baseName}.gtf $bam
 		"""
@@ -460,7 +478,7 @@ process stringtieFPKM {
 		saveAs: {filename -> filename.indexOf(".sh") > 0 ? "${prefix}_commands.sh" : "$filename" }
 
 	input:
-		file bam from filtered_bams_quantify
+		file bam from bams_quantify
 		file gtf from merged_gtf_quant.collect()		
 
 	output:
@@ -468,7 +486,7 @@ process stringtieFPKM {
 		file "$prefix/${prefix}.gtf" into sample_gtfs
 		file ".command.sh" into stringtieFPKM_commands
 	script:
-		prefix = bam[0].toString() - ~/_filtered.*/
+		prefix = bam[0].toString() - ~/_filtered.*|Aligned.*/
 		def stringtie_dir = ""
 		if (params.strand =~/first/) {
 			stringtie_dir = "--fr"
@@ -529,7 +547,7 @@ process featureCounts {
 
 	input:
 		file gtf from featureCounts_gtf
-		file bam from filtered_bams_featureCounts.collect()
+		file bam from bams_featureCounts.collect()
 
 	output:
 		file "featureCounts_gene_counts.csv" into featureCounts_gene_counts
@@ -550,13 +568,14 @@ process featureCounts {
 
 }
 
-if (params.featurecounts) {
+if (params.featureCounts) {
 	featureCounts_gene_counts
 			.set { DESeq2_gene_counts}
-				
+	print("Setting DESeq2 gene counts")			
 } else {
 	stringtie_gene_counts
 			.set { DESeq2_gene_counts }
+	print("using stringtie counts")
 }
 
 /*
@@ -614,13 +633,14 @@ process multiqc {
 	input:
 		file fastqc from fastqc_results.collect()
 		file star_log from star2pass_logs.collect()
-		file trim_summary from All_trim_summaries.collect()
+		file All_trim_summaries
 		file featureCounts_stats
 		file heatmap_config
 		file pca_config
                 file gtf_multiqc
                 file multiqc_config
-		file DE_results  
+		file DE_results 
+		file mq_samples  
 	
 	output:
 		file "multiqc_report.html" into multiqc_report
@@ -628,7 +648,8 @@ process multiqc {
 
 	script:
 		"""
-		multiqc -f .
+		cut -f1-3 $mq_samples > samples_for_mq.txt
+		multiqc -f --sample-names samples_for_mq.txt .
 		"""
 }
 

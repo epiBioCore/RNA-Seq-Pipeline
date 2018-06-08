@@ -1,5 +1,4 @@
 id: 'pca'
-section_name: 'PCA Plot'
 idescription: "show relatedness between samples in a project.
             These values are calculated the plotPCA functon using <a 'https://bioconductor.org/packages/release/bioc/html/DESeq2.html'>DESeq2</a>"
 plot_type: 'scatter'

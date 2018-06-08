@@ -1,7 +1,7 @@
 #id: 'heatmap'
 #section_name: 'DESeq2: Sample Similarity' 
 #description: "is generated from normalised gene counts through
-#       <a href='https://bioconductor.org/packages/release/bioc/html/DESeq2.html'>DESeq2/a>.
+#       <a href='https://bioconductor.org/packages/release/bioc/html/DESeq2.html'>DESeq2</a>.
 #       Euclidean distances between log<sub>2</sub> normalised read counts are then calculated and clustered."
 #plot_type: 'heatmap'
 #anchor: 'sample_similarity'
