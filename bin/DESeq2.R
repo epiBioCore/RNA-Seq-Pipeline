@@ -20,7 +20,7 @@ require(tidyverse) || stop ("The tidyverse library is not available")
 
 maPlot.lists <- function(x,i) {
   pdf(paste(i, '_maPlot.pdf', sep=''))
-  plotMA(x, main=paste(i, 'alpha=0.01', sep=' '), 
+  plotMA(x, main=paste(i, 'alpha=0.05', sep=' '), 
          alpha=0.01, ylim=c(-6,6))
   abline(h=c(2,-2), col='red')
   dev.off()
@@ -71,7 +71,7 @@ head(counts)
 ## This one will be set up with both condition and replicate variables.
 ## These variable names should be edited to match your experiment.
 ## Order matters!  Check your file_list variable!  
-colData <- data.frame(row.names=sample_info$filePrefix,
+colData <- data.frame(row.names=sample_info$coreNumber,
                       condition=sample_info$Treat,
                       replicate=sample_info$sampleName)
 
@@ -79,7 +79,7 @@ head(colData)
 ##match rownames of colData with the colnames of count matrix
 ##check if rownames and colnames match
 
-colData<-colData[match(colnames(counts),rownames(colData)),]
+counts <- counts[match(rownames(colData),colnames(counts)),]
 ## Create DESeqDataSet
 ## Consolidates the data into an object that can be utilized by the program for 
 ## calculations and plotting.  Requires you to specify the experimental design 
@@ -88,8 +88,6 @@ dds <- DESeqDataSetFromMatrix(countData=counts,
                               design= ~ condition)
 
 
-## Ensure that reference level is set to the control before calling the 
-## algorithm on the dds object.  
 
 ## Call algorithm on the assembled data set
 dds <- DESeq(dds)
@@ -106,58 +104,29 @@ dev.off()
 ## Retrieve count data and clean up the data frame 
 count_data <- counts(dds, normalized=T)
 colnames(count_data) <- colData$replicate 
-
-## We need the gene lengths to calculte fpkm.  
-## the following code will retrieve and calculate the gene lengths from the gtf
-## file then add them to the dds object.  This may take some time...
-
-# gr<-import('Assembly/merged.annotated.gtf')
-# txdb<-makeTxDbFromGRanges(gr)
-# txdb <- makeTxDbFromGFF('Assembly/merged.gtf')
-# exons.list.per.gene <- exonsBy(txdb, by='gene')
-# exonic.gene.sizes <- lapply(exons.list.per.gene,
-#                             function(x){sum(width(reduce(x)))})
-# gene_size <- data.frame(unlist(exonic.gene.sizes))
-# gene_size <- data.frame(cbind(gene_size, 
-#                               kb=apply(gene_size, 1, 
-#                                        function(x){x/1000})))
-# colnames(gene_size)[1] <- 'length'
-# ## add to dds object
-# mcols(dds)$basepairs <- gene_size[,'length']
-# ## Get fpkm data
-# fpkm_data <- fpkm(dds)
-# colnames(fpkm_data) <- colnames(count_data)
 # 
-# ## Here we will add mean counts for each sample to the count and fpkm data frames.
+# ## Here we will add mean counts for each sample to the count dataframe.
 ## The is a purely convience operation to make the output tables more useful.
-## Then write those tables to file.
-## You will need to match these column names to your condition variable.
-## Additional lines will need to be added if you have more than two conditions
+## Then write those tables to file.s
 
 count_means<-t(apply(count_data,1,function(x) tapply(x,colData(dds)$condition,mean,na.rm=T)))
 head(count_means)
+
 ##count means and counts should be in the same order, but just in case....
 count_means<-count_means[match(rownames(count_data),rownames(count_means)),]
 colnames(count_means) <- paste(colnames(count_means),"mean",sep=".")
 
 count_data_with_means <- data.frame(cbind(count_data,count_means))
-# fpkm_data <- data.frame(cbind(fpkm_data, 
-#                               CtlMean=apply(fpkm_data[,1:2],1,mean),
-#                               TreatedMean=apply(fpkm_data[,3:4],1,mean)))
-# 
-write.csv(count_data, file='depthNormCount.csv', quote=F)
-# write.csv(fpkm_data, file='fpkmData_151101.csv', quote=F)
 
-####################  Conditional QC   ########################################
+write.csv(count_data, file='depthNormCount.csv', quote=F)
+
+####################  QC   ########################################
 
 ## Perform rLog transformation on the data 
 rld <- rlog(dds)
 
 ##save the rld
-rld_assay<-as.data.frame(assay(rld))
-rld_assay$gene_id<-rownames(rld_assay)
-rld_assay<-select(rld_assay,gene_id,everything())
-write.csv(rld_assay,file="rld.csv",row.names=F,quote=F)
+save((rld,file="rld.rda")
 
 
 hmcol <- colorRampPalette(brewer.pal(9, 'GnBu'))(100)
@@ -168,9 +137,7 @@ mat <- as.matrix(dists)
 rownames(mat) <- colnames(mat) <- as.character(colData$replicate)
 hc <- hclust(dists)
 
-## Plot HM and save to file.  Run without the pdf() and dev.off() fxns to plot
-## in the R window before saving to file.  There are several other file type 
-## options besides pdf  
+## Plot HM and save to file.
 pdf('distClustering.pdf')
 hm <- heatmap.2(mat, Rowv=as.dendrogram(hc), symm=T, trace='none',
           col=rev(hmcol), margin=c(13,13))
@@ -182,10 +149,12 @@ write.csv(hm$carpet,file = "sample_distance_matrix_for_mq.csv",quote = F)
 ## a PCA plot is another way to look at the data in a similar way.  Here we 
 ## plot one and save it to file.
 pdf('PCA.pdf')
-pca <- plotPCA(rld, intgroup=c('condition'),returnData = T)
+plotPCA(rld, intgroup=c('condition'))
 dev.off()
 
-col<-brewer.pal(n=3,"Set1")
+pca <- plotPCA(rld, intgroup=c('condition'),returnData = T)
+col<-hue_pal()(nlevels(as.factor(pca$condition))
+
 
 pcaForMQC<-function(pca) {
 pca$color<-col[as.numeric(pca$condition)]
@@ -221,21 +190,27 @@ Res <- lapply(Res,function(x) x[order(x$padj), ])
 
 
 
-Res_with_means<-Map(addMeans,Res,names(Res))
-
+Res_with_means <- Map(addMeans,Res,names(Res))
+## make the gene ids a column
+Res_with_means <- Map(Res_with_means,function(x) {
+		x$geneid <- rownames(x)
+		dat <- select(x,geneid,everything())
+		return(dat)
+		}
 ###export all results
 file_names<-paste0(names(Res_with_means),"_DEtable_ALL_genes.csv")
 
-Map(write.csv,Res_with_means,file=file_names)
+Map(write.csv,Res_with_means,file=file_names,MoreArgs = list(row.names = F))
 
 
 ## get significant genes
 sigRes <- lapply(Res_with_means,function(x) subset(x, padj<=0.05))
 
 ###export Sig results
-file_names<-paste0(names(sigRes),"_DEtable_SIG_genes.csv")
+file_names <- paste0(names(sigRes),"_DEtable_SIG_genes.csv")
 
-Map(write.csv,sigRes,file=file_names)
+sigRes <- sigRes[sapply(sigRes,nrow)>0]
+Map(write.csv,sigRes,file=file_names,MoreArgs = list(row.names = F))
 
 
 ##export a summary of the DEGS
@@ -244,7 +219,7 @@ summary<-data.frame(Down=sapply(sigRes,function(x) nrow(subset(x,log2FoldChange 
                     Total=sapply(sigRes,nrow))    
                                  
 summary$Comparison<-names(sigRes)
-summary<-select(summary,Comparison,everything())
+summary <- select(summary,Comparison,everything())
 write.table(summary,file="DE_summary.txt",sep="\t",quote=F,row.names=F)
 
 ##may meed to format differently for multiqc
