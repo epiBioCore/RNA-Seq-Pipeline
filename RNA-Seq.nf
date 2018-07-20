@@ -24,6 +24,7 @@ def helpMessage() {
 	--reads		path to fastq files. Must be surrounded in quotes. ex 'Raw_fastq/*{1,2}.fq.gz', 'data/*_{R1,R2}*.fastq.gz'
 	--genome	path to genome fasta file
 	--gtf		path to gtf file
+	--samples	a tab delimited with sample names and treatment groups. More information provided below.
 
 	Optional arguments:
 	--singleEnd		specifies the fastq files are single end
@@ -33,13 +34,12 @@ def helpMessage() {
 	--feautureCounts	perform read counting using featureCounts. Default true 
 	--stringtie		perform transcript assembly using stringtie. Default true
 	--noDE			do not perform Differential Expression analysis. 
-        --samples       	a tab delimited file with sample names and treatment groups. More information provided below
         --comparisons   	a tab delimited file with comparisons. More information provided below.
 
 	More Information:
-	If performing a differential expression analysis, two tab-delimited files must be specified. A samples file that contains the coreNumber, sampleName, and treatment group. ex. A 
-	A comparisons file with the desired comparisons. One comparison per row. The first column is the treatment group and the second group is the control. DESeq2 will calculate log Fold changes
-	relative the the control group. ex.
+	The samples files is a a tab delimited file with for columns-prefix, coreNumber, sampleName, and treatment group. The prefix is the part of the fastq file name up to _1.fq.gz. For example for the fastq file name- R18_058_001_USPD16087566_HM3H3BBXX_L4_1.fq, the prefix would be R18_058_001_USPD16087566_HM3H3BBXX_L4. An example of a sample file is can be found at: https://github.com/epiBioCore/RNA-Seq-Pipeline/tree/master/bin.
+	If performing a differential expression analysis, a comparisons file with the desired comparisons must be specified.  This file has One comparison per row. The first column is the treatment group and the second group is the control. DESeq2 will calculate log Fold changes
+	relative the the control group. For an example of a comparisons file can be found at: https://github.com/epiBioCore/RNA-Seq-Pipeline/tree/master/bin.
 	"""
 } 
 

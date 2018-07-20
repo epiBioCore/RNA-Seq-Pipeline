@@ -1,0 +1,7 @@
+Treat	Control
+Control_Drug	Control
+Knock1_Drug	Knock1
+Knock1	Control
+Knock1_Drug	Control_Drug
+Knock1_Drug	Control
+Knock1	Control_Drug
