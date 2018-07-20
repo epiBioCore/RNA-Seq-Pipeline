@@ -567,7 +567,7 @@ process featureCounts {
 		   fc_strand = 1
 		}
 		
-		if !params.singleEnd
+		if ( !params.singleEnd )
 	        """ 
 		featureCounts -a $gtf -p -s $fc_strand -o featureCounts_gene_counts.txt $bam 
 		"""
@@ -598,6 +598,7 @@ process prepFeatureCounts {
 	
 
 
+}
 }
 
 if (!params.featureCounts) {
