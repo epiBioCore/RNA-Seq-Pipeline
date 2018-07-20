@@ -12,6 +12,7 @@ require(RColorBrewer) || stop("The RcolorBrewer library is not available!")
 require(GenomicFeatures) || stop("The GenomicFeatures library is not available!")
 require(ggplot2) || stop("The ggplot2 library is not available!")
 require(tidyverse) || stop ("The tidyverse library is not available")
+require(scales) || stop("The scales library is not available")
 ################################################################################
 ####################  Functions  ###############################################
 ################################################################################
@@ -45,25 +46,19 @@ addMeans<-function(x,comp) {
 
 
 ################################################################################
+theme_set(theme_bw())
 args<-commandArgs()
 
 count_file<-str_split(args[grep("counts",args)],"=",simplify=T)[2]
 sample_file<-str_split(args[grep("samples",args)],"=",simplify=T)[2]
 comparisons_file<-str_split(args[grep("comparisons",args)],"=",simplify=T)[2]
 
-if (grepl("featureCounts", count_file)) {
-counts<-read.delim(count_file,header=TRUE,stringsAsFactors=F,skip=1,check.names=F) 
-rownames(counts)<-counts$Geneid
-counts<-counts[,-c(1:6)]
- colnames(counts)<-gsub("_filtered_sortedByCoord.out.bam|Aligned.*","",colnames(counts))
-} else {
 counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
-}
-head(counts)
+
+
 #counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
 sample_info<-read.delim(sample_file,header=T,stringsAsFactors=F,col.names=c("filePrefix","coreNumber","sampleName","Treat"))
-comparisons<-read.delim(comparisons_file,header=F,stringsAsFactors=F,col.names=c("treat","control"))
-head(counts)
+comparisons<-read.delim(comparisons_file,header=T,stringsAsFactors=F,col.names=c("treat","control"))
 
 ####################  Algorithm   ##############################################
 
@@ -75,11 +70,11 @@ colData <- data.frame(row.names=sample_info$coreNumber,
                       condition=sample_info$Treat,
                       replicate=sample_info$sampleName)
 
-head(colData)
+
 ##match rownames of colData with the colnames of count matrix
 ##check if rownames and colnames match
 
-counts <- counts[match(rownames(colData),colnames(counts)),]
+counts <- counts[,match(rownames(colData),colnames(counts))]
 ## Create DESeqDataSet
 ## Consolidates the data into an object that can be utilized by the program for 
 ## calculations and plotting.  Requires you to specify the experimental design 
@@ -126,7 +121,7 @@ write.csv(count_data, file='depthNormCount.csv', quote=F)
 rld <- rlog(dds)
 
 ##save the rld
-save((rld,file="rld.rda")
+save(rld,file="rld.rda")
 
 
 hmcol <- colorRampPalette(brewer.pal(9, 'GnBu'))(100)
@@ -153,7 +148,7 @@ plotPCA(rld, intgroup=c('condition'))
 dev.off()
 
 pca <- plotPCA(rld, intgroup=c('condition'),returnData = T)
-col<-hue_pal()(nlevels(as.factor(pca$condition))
+col<-hue_pal()(nlevels(as.factor(pca$condition)))
 
 
 pcaForMQC<-function(pca) {
@@ -178,7 +173,7 @@ contrasts<-lapply(seq(1:nrow(comparisons)),function(x) {
 })
 names(contrasts)<-paste(comparisons$treat,comparisons$control,sep="vs")
 
-resultsNames(dds)
+
 Res <- lapply(contrasts,function(x) results(dds,contrast=x,alpha = 0.05))
 Map(maPlot.lists,Res,names(Res))
 
@@ -192,11 +187,11 @@ Res <- lapply(Res,function(x) x[order(x$padj), ])
 
 Res_with_means <- Map(addMeans,Res,names(Res))
 ## make the gene ids a column
-Res_with_means <- Map(Res_with_means,function(x) {
+Res_with_means <- lapply(Res_with_means,function(x) {
 		x$geneid <- rownames(x)
 		dat <- select(x,geneid,everything())
 		return(dat)
-		}
+		})
 ###export all results
 file_names<-paste0(names(Res_with_means),"_DEtable_ALL_genes.csv")
 
@@ -205,12 +200,6 @@ Map(write.csv,Res_with_means,file=file_names,MoreArgs = list(row.names = F))
 
 ## get significant genes
 sigRes <- lapply(Res_with_means,function(x) subset(x, padj<=0.05))
-
-###export Sig results
-file_names <- paste0(names(sigRes),"_DEtable_SIG_genes.csv")
-
-sigRes <- sigRes[sapply(sigRes,nrow)>0]
-Map(write.csv,sigRes,file=file_names,MoreArgs = list(row.names = F))
 
 
 ##export a summary of the DEGS
@@ -222,7 +211,16 @@ summary$Comparison<-names(sigRes)
 summary <- select(summary,Comparison,everything())
 write.table(summary,file="DE_summary.txt",sep="\t",quote=F,row.names=F)
 
-##may meed to format differently for multiqc
+###export Sig results
+##remove any data frames with no results
+sigRes <- sigRes[sapply(sigRes,nrow)>0]
+
+file_names <- paste0(names(sigRes),"_DEtable_SIG_genes.csv")
+
+Map(write.csv,sigRes,file=file_names,MoreArgs = list(row.names = F))
+
+
+## save DESeqDataSet
 save(dds, file="DESeqDataSet.rda")
 
 #save sessionInfo()

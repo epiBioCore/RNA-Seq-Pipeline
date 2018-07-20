@@ -107,7 +107,7 @@ if (params.samples) {
 	} else {
 	Channel
 		.fromPath(params.samples)
-		.into { mq_samples; samples }
+		.into { mq_samples; samples; star1_samples; star2_samples }
 	}
 } else if (!paramss.samples) {
 	exit 1, "No sample sheet specified!"
@@ -251,6 +251,7 @@ process STAR1pass {
 	maxForks 1
 
 	input:
+		file samples from star1_samples.collect()
 		file reads from read_files_star1
 		file index from star_index.collect()
 
@@ -258,10 +259,12 @@ process STAR1pass {
 		file "*SJ.out.tab" into star1pass_gtf
  		file "*.bam" into star1pass_aln
 		file ".command.sh" into star1pass_commands
+	
 	script:
-		
-		prefix = reads[0].toString() - ~/_.*/
+		prefix = reads[0].toString() - ~/_1_at.fq.gz|_R1_001_at.fastq.gz/	
 		"""
+		sample=\$(grep $prefix $samples | cut -f2) 
+		
 		STAR --runThreadN ${params.threads} \\
 		--genomeDir $index \\
 		--readFilesIn $reads \\
@@ -277,7 +280,7 @@ process STAR1pass {
 		--alignMatesGapMax 1000000 \\
 		--outSAMstrandField intronMotif \\
 		--outSAMtype BAM SortedByCoordinate \\
-		--outFileNamePrefix $prefix
+		--outFileNamePrefix \$sample
 		"""
 			
 }
@@ -326,6 +329,7 @@ process STAR2pass {
 	input:
 		file reads from read_files_star2
 		file index from Star2pass_index.collect()
+		file samples from star2_samples.collect()
 
 	output:
 		file "*.bam" into star2pass_aln
@@ -333,9 +337,11 @@ process STAR2pass {
 		file ".command.sh" into star2pass_commands
 	
 	script:
-		prefix = reads[0].toString() - ~/_.*/
+		prefix = reads[0].toString() - ~/_1_at.fq.gz|_R1_001_at.fastq.gz/		
                 """
-                STAR --runThreadN ${params.threads} \\
+		sample=\$(grep $prefix $samples | cut -f2)
+                
+		STAR --runThreadN ${params.threads} \\
                 --genomeDir $index \\
                 --readFilesIn $reads \\
                 --readFilesCommand gunzip -c \\
@@ -350,7 +356,7 @@ process STAR2pass {
                 --alignMatesGapMax 1000000 \\
                 --outSAMstrandField intronMotif \\
                 --outSAMtype BAM SortedByCoordinate \\
-                --outFileNamePrefix $prefix
+                --outFileNamePrefix \$sample
 		"""
 
 }
@@ -550,7 +556,7 @@ process featureCounts {
 		file bam from bams_featureCounts.collect()
 
 	output:
-		file "featureCounts_gene_counts.csv" into featureCounts_gene_counts
+		file "featureCounts_gene_counts.txt" into featureCounts_gene_counts
 		file "*.summary" into featureCounts_stats
 
 	script:
@@ -561,21 +567,42 @@ process featureCounts {
 		   fc_strand = 1
 		}
 		
+		if !params.singleEnd
 	        """ 
-		featureCounts -a $gtf -p -s $fc_strand -o featureCounts_gene_counts.csv $bam 
+		featureCounts -a $gtf -p -s $fc_strand -o featureCounts_gene_counts.txt $bam 
 		"""
+		else
+		"""
+                featureCounts -a $gtf -s $fc_strand -o featureCounts_gene_counts.txt $bam
+                """
+
+
 }
+process prepFeatureCounts {
+	input:
+		file counts from featureCounts_gene_counts
+
+	output:
+		file ".csv" into DESeq2_gene_counts
+	script:
+	'''
+	#!/usr/bin/env Rscript
+	
+	counts<-read.delim(count_file,header=TRUE,stringsAsFactors=F,skip=1,check.names=F)
+	rownames(counts)<-counts$Geneid
+	counts<-counts[,-c(1:6)]
+ 	colnames(counts)<-gsub("_filtered_sortedByCoord.out.bam|Aligned.*","",colnames(counts))
+	write.csv(counts, file = "featureCounts_gene_counts_for_DESeq2.csv",row.names = F)
+	'''
+
+	
+
 
 }
 
-if (params.featureCounts) {
-	featureCounts_gene_counts
-			.set { DESeq2_gene_counts}
-	print("Setting DESeq2 gene counts")			
-} else {
+if (!params.featureCounts) {
 	stringtie_gene_counts
 			.set { DESeq2_gene_counts }
-	print("using stringtie counts")
 }
 
 /*
@@ -648,7 +675,7 @@ process multiqc {
 
 	script:
 		"""
-		cut -f1-3 $mq_samples > samples_for_mq.txt
+		awk 'BEGIN{OFS="\t"} {print \$2,\$1,\$3}' $mq_samples > samples_for_mq.txt
 		multiqc -f --sample-names samples_for_mq.txt .
 		"""
 }
@@ -668,7 +695,7 @@ process softwareVersions {
 		which trimmomatic-0.33.jar | cut -f5 -d "/" | cut -f1,2 -d "." &>> softwareVersions.txt
 		STAR --version &>> softwareVersions.txt
 		samtools --version | grep "samtools" &>> softwareVersions.txt
-		echo stringtie $(stringtie -v) &>> softwareVersions.txt
+		echo stringtie $(stringtie --version) &>> softwareVersions.txt
 		gffcompare --version &>> softwareVersions.txt
 		'''
 }	
