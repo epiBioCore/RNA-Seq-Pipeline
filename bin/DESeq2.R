@@ -53,8 +53,8 @@ count_file<-str_split(args[grep("counts",args)],"=",simplify=T)[2]
 sample_file<-str_split(args[grep("samples",args)],"=",simplify=T)[2]
 comparisons_file<-str_split(args[grep("comparisons",args)],"=",simplify=T)[2]
 
-counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
 
+counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
 
 #counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
 sample_info<-read.delim(sample_file,header=T,stringsAsFactors=F,col.names=c("filePrefix","coreNumber","sampleName","Treat"))
