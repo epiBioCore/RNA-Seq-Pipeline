@@ -21,8 +21,7 @@ require(scales) || stop("The scales library is not available")
 
 maPlot.lists <- function(x,i,file) {
   pdf(file = file)
-  plotMA(x, main=i, 
-         alpha=0.01, ylim=c(-6,6))
+  plotMA(x, main=i,alpha=0.05, ylim=c(-6,6))
   abline(h=c(2,-2), col='red')
   dev.off()
 }
@@ -30,6 +29,7 @@ maPlot.lists <- function(x,i,file) {
 
 ##function for adding the means of depth norm counts ,or fpkm per group the DEtable 
 addMeans<-function(x,means,comp) {
+
   detable<-as.data.frame(x)
   
   ##get the two group names
@@ -75,9 +75,11 @@ plotPCA2 <- function (object, intgroup = "condition", ntop = 500, dim1= 1,dim2 =
 }
 
 
+
 ################################################################################
 theme_set(theme_bw())
 args<-commandArgs()
+
 args
 count_file<-str_split(args[grep("--counts",args)],"=",simplify=T)[2]
 sample_file<-str_split(args[grep("--samples",args)],"=",simplify=T)[2]
@@ -87,9 +89,11 @@ out<-str_split(args[grep("--out",args)],"=",simplify=T)[2]
 species<-str_split(args[grep("--species",args)],"=",simplify=T)[2]
 fpkms <- str_split(args[grep("--fpkms",args)],"=",simplify=T)[2]
 
+
 counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1,check.names = F)
 
 #counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
+
 sample_info<-read.delim(sample_file,header=F,stringsAsFactors=F)
 gene_lengths <- read.csv(gene_lengths_file,header=T,stringsAsFactor=F,row.names = 1)
 
@@ -100,6 +104,7 @@ colnames(sample_info) <- c("sampleName","coreNumber","Group","read1")
 colnames(sample_info) <- c("sampleName","coreNumber","Group","read1","read2")
 }
 comparisons<-read.delim(comparisons_file,header=F,stringsAsFactors=F,col.names=c("treat","control"))
+
 
 ####################  Algorithm   ##############################################
 
@@ -133,7 +138,9 @@ dds <- DESeq(dds,betaPrior= T)
 ## Plot the dispersion of the experiment to verify that the Algorithm's 
 ## assumptions are valid for this dataset.  This will also show us if 
 ## the variance is too LOW in the samples indicating an error in replication
+
 pdf(file=file.path(out,'dispModel.pdf'))
+
 plotDispEsts(dds)
 dev.off()
 
@@ -148,6 +155,7 @@ colnames(count_data) <- colData$replicate
 ## Then write those tables to file.s
 
 count_means<-t(apply(count_data,1,function(x) tapply(x,colData(dds)$condition,mean,na.rm=T)))
+
 
 
 ##count means and counts should be in the same order, but just in case....
@@ -203,8 +211,6 @@ fpkm_data_with_means <- data.frame(cbind(fpkm_data,fpkm_means),check.names =F)
 write.csv(fpkm_data_with_means, file=file.path(out,'fpkm_values.csv'), quote=F)
 
 
-
-
 ####################  QC   ########################################
 
 ## Perform rLog transformation on the data 
@@ -212,6 +218,7 @@ rld <- rlog(dds)
 
 ##save the rld
 save(rld,file=file.path(out,"rld.rda"))
+
 
 
 hmcol <- colorRampPalette(brewer.pal(9, 'GnBu'))(100)
@@ -234,6 +241,7 @@ write.csv(hm$carpet,file = file.path(out,"sample_distance_matrix_for_mq.csv"),qu
 ## a PCA plot is another way to look at the data in a similar way.  Here we 
 ## plot one and save it to file.
 pdf(file=file.path(out,'PCA_pc1vspc2.pdf'))
+
 plotPCA(rld, intgroup=c('condition'))
 dev.off()
 
@@ -250,6 +258,7 @@ paste0('    ',pca$name,': {x: ',pca$PC1,', y: ',pca$PC2,', color: "',pca$color,'
 }
 
 for_mqc<-pcaForMQC(pca)
+
 
 write.table(for_mqc,file = file.path(out,"pca_for_mq.yaml"),quote =F,row.names = F, col.names = F)
 
@@ -283,7 +292,6 @@ Map(maPlot.lists,Res,names(Res),file_names)
 ## Now let's order the result object, subset by adjusted p-value, print a 
 ## summary and rearrange things a bit to save these results to file
 Res <- lapply(Res,function(x) x[order(x$padj), ])
-
 
 Res_with_means<- Map(function(x,means,comp) {
         dat <- addMeans(x,means,comp)
@@ -330,7 +338,6 @@ Map(write.csv,Res_with_annotations,file=file_names,MoreArgs = list(row.names = F
 ## get significant genes
 sigRes <- lapply(Res_with_annotations,function(x) subset(x, padj<=0.05))
 
-
 ##export a summary of the DEGS
 summary<-data.frame(Down=sapply(sigRes,function(x) nrow(subset(x,log2FoldChange < 0))),
                     Up=sapply(sigRes,function(x) nrow(subset(x,log2FoldChange > 0))),
@@ -339,6 +346,7 @@ summary<-data.frame(Down=sapply(sigRes,function(x) nrow(subset(x,log2FoldChange 
 summary$Comparison<-names(sigRes)
 summary <- select(summary,Comparison,everything())
 write.table(summary,file=file.path(out,"DE_summary.txt"),sep="\t",quote=F,row.names=F)
+
 
 ###export Sig results
 ##remove any data frames with no results
@@ -358,3 +366,4 @@ save(dds, file=file.path(out,"DESeqDataSet.rda"))
 sink(file=file.path(out,"SessionInfo.txt"))
 sessionInfo()
 sink()
+

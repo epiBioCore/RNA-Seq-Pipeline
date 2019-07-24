@@ -1,0 +1,82 @@
+#Title
+title: "RNA-Seq Report"
+subtitle: null
+
+
+report_section_order:
+    DE_results:
+        order: 10
+    heatmap:
+        order: 20
+    pca:
+        order: 30
+    missing_novel:
+        order: 40
+    sensitivity_and_precision:
+        order: 50
+    featurecounts:
+        order: 60
+    star:
+        order: 70
+    trimmomatic:
+        order: 80
+    fastqc:
+        order: 90
+    
+extra_fn_clean_exts:
+    - '_filtered_sortedByCoord'
+
+#---------------------------
+#Custom Data
+#--------------------------
+
+custom_content:
+    order:
+        - 'sensitivity_and_precision'
+        - 'missing_novel'
+        - 'pca'
+        - 'heatmap'
+        - 'DE_results'
+
+custom_data:
+    sensitivity_and_precision:
+        section_name: 'Accuracy of Stringtie-assembled transcriptome'
+        description: 'sensitivity and precision of stringtie assembly determined by <a "http://ccb.jhu.edu/software/stringtie/gffcompare.shtml"> gffComapare </a> '
+        file_format: 'tsv'
+        plot_type: 'table'
+        pconfig:
+            id: 'gffcompare_sensitivity_precision'
+            title: 'Sensitivity and Precision'
+            xlab: 'sensitivity/precision'
+            ylab: 'Genomic context' 
+            stacking: null
+            cpswitch: False    
+
+    missing_novel:
+        section_name: 'Missing and novel features'
+        description: 'Percentage of missing and novel features in stringtie assembly. Determined by <a "http://ccb.jhu.edu/software/stringtie/gffcompare.shtml"> gffComapare </a> '
+        file_format: 'tsv'
+        plot_type: 'table'
+        pconfig:
+            id: 'gffcompare_missing_novel'
+            title: "Missing and Novel"
+            xlab: 'Percentage'
+            ylab: 'Genomic context'
+            stacking: null
+            cpswitch: False
+
+    DE_results:
+        section_name: 'Differential expression results'
+        description: 'Number of differentially expressed genes, calculated using DESeq2 with an adjusted p-value of 0.05'
+        file_format: 'tsv'
+        plot_type: 'table'
+        pconfig:
+            id: 'DESeq2_results'
+            title: 'Number of differentially expressed genes'        
+sp:
+    sensitivity_and_precision:
+        fn: 'sensitivity_and_precision_for_multiqc.tsv'
+    missing_novel:
+        fn: 'missing_novel_for_multiqc.tsv'
+    DE_results:
+        fn: 'DE_summary.txt'                
