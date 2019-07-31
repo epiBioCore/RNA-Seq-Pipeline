@@ -5,7 +5,7 @@ library(enrichplot)
 library(DOSE)
 library(rWikiPathways)
 library(tidyverse)
-
+library(SPIA)
 
 
 theme_set(theme_bw())
@@ -140,7 +140,31 @@ ewp <- map(ewp,"result")
 names(ewp) <- paste0(names(ewp),"_wikipathways")
 map2(ewp,names(ewp),function(i,x){write.table(i,file=file.path(out,paste0(x,".txt")), sep="\t", quote=F,row.names=F)} )
 
+############spia
 
+safe_spia <- safely(~spia(de=.x,all=.y,organism="mmu",plots = F,beta = NULL,combine = "fisher",verbose = "FALSE"))
+##to handle errors if there isn't enough DE genes i
+
+top <- map(genelists, function(x) x[!is.na(x$ENTREZID),])
+top<-map(top,~.x[!duplicated(.x$ENTREZID),])
+tgl <- map(top,~subset(.x,padj<=0.05))
+tgl <- tgl[sapply(tgl,nrow)>1]
+DE <- map(tgl,"log2FoldChange")
+DE <- map2(DE,tgl,function(d,t) {
+  names(d) <- t$ENTREZID
+  return(d)
+})
+
+ALL <- top[names(top) %in% names(tgl)]
+ALL <- map(ALL,"ENTREZID")
+
+res <- map2(DE,ALL,~safe_spia(de=.x,all=.y))
+res_to_keep <- map_lgl(res,~is.null(.x$error))
+
+res <- res[res_to_keep]
+map2(res,names(res),function(r,name) {
+  write.table(r$result,file = file.path(out,paste0(name,"_SPIA_enrichment.txt")),sep = "\t",row.names = F,quote = F)
+})
 ###############Plotting
 ###first create "safe" functions to handle erros
 safe_barplot <- safely(~barplot(.,showCategory=12))
