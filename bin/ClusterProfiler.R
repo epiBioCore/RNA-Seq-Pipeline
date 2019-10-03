@@ -20,12 +20,27 @@ lx=list.files(pattern ="DEtable_ALL_genes.csv",path=DE_dir,full.names=T)
 DE=lapply(lx,read.csv)
 names(DE)=gsub("_DEtable_ALL_genes.csv","",basename(lx))
 
+# orgDb
+
+if(org=="mm10") {
+  orgDb <- "org.Mm.eg.db"
+  kegg_ord <- "Mmu"
+  organism <- "Mus Musculus"
+}else if (org == "hg19") {
+  orgDb <-"org.Hs.eg.db"
+  kegg_ord <- "Hsa"
+  organism <- "Homo Sapiens"
+} else {
+  stop("Stop! Either no organism provided or organism is not supported.")
+}
+
+
 
 
 #Get gene lists of DE genes with entrezid added
 
 genelists <- map2(DE,names(DE),function(i,x){
-  ids_all= bitr(i$GeneID, fromType="SYMBOL", toType=c("ENTREZID", "ENSEMBL"), OrgDb="org.Mm.eg.db")
+  ids_all= bitr(i$GeneID, fromType="SYMBOL", toType=c("ENTREZID", "ENSEMBL"), OrgDb=orgDb)
   
   merge(i,ids_all,by.x="GeneID",by.y="SYMBOL")
 })
@@ -43,7 +58,7 @@ GO_enrich=map2(genelists,sig_genes, function(genelist,sig_genes){
     
     enrichGO(gene =sig_genes$ENTREZID,
              universe =genelists$ENTREZID,
-             OrgDb=org.Mm.eg.db, ont=ont,
+             OrgDb=orgDb, ont=ont,
              pAdjustMethod = "BH",
              pvalueCutoff  = 0.01,
              qvalueCutoff  = 0.05, readable =TRUE)
@@ -62,9 +77,11 @@ map2(GO_enrich_ul,names(GO_enrich_ul),function(i,x){write.table(i,file=file.path
 
 #########KEGG pathway and module enrichment
 ###KEGG pathways
+
+
 KEGG <-map(sig_genes,function(x){
   
-  enrichKEGG(gene= x$ENTREZID,organism='mmu',pvalueCutoff = 0.05)
+  enrichKEGG(gene= x$ENTREZID,organism=kegg_org,pvalueCutoff = 0.05)
 })
 
 names(KEGG) <- paste0(names(KEGG),"_KEGG")
@@ -75,7 +92,7 @@ map2(KEGG,names(KEGG),function(i,x){write.table(i,file=file.path(out,paste0(x,".
 
 KEGG_mod=map(sig_genes,function(x){
   
-  enrichMKEGG(gene = x$ENTREZID,organism ='mmu')
+  enrichMKEGG(gene = x$ENTREZID,organism = kegg_org)
   
 })
 
@@ -98,7 +115,7 @@ GSEA=map(genelists,function(x){
   
   gseGO(geneList     = GSEA_list,
         
-        OrgDb        = org.Mm.eg.db,
+        OrgDb        = orgDb,
         
         ont          = "ALL",
         
@@ -142,7 +159,7 @@ map2(ewp,names(ewp),function(i,x){write.table(i,file=file.path(out,paste0(x,".tx
 
 ############spia
 
-safe_spia <- safely(~spia(de=.x,all=.y,organism="mmu",plots = F,beta = NULL,combine = "fisher",verbose = "FALSE"))
+safe_spia <- safely(~spia(de=.x,all=.y,organism=kegg_org,plots = F,beta = NULL,combine = "fisher",verbose = "FALSE"))
 ##to handle errors if there isn't enough DE genes i
 
 top <- map(genelists, function(x) x[!is.na(x$ENTREZID),])
@@ -204,7 +221,7 @@ map2(plots_filtered,names(plots_filtered),function(x,y) {
 
 
 ##################save all of the enrichment objects
-map2(plot_objects,names(plot_objects), ~save(.x,file=file.path(out,paste0(.y,"_enrichment_object.rda"))))
+map2(plot_objects,names(plot_objects), function(x,y) save(x,file=file.path(out,paste0(y,"_enrichment_object.rda"))))
 
 sink(file=file.path(out,"SessionInfo.txt"))
 sessionInfo()

@@ -447,31 +447,31 @@ then
 	fi
 
 
-	#if [ "$se" != "true" ]
-	#then            
-        #                
-	#featureCounts -a $gtf $fc_strand -p -o $counts/featureCounts_gene_counts.txt $star2/*sorted.bam
-        #                
-	#else            
-	#	featureCounts -a $gtf $fc_strand -o $counts/featureCounts_gene_counts.txt $star2/*sorted.bam
-        #                
-	#fi              
+	if [ "$se" != "true" ]
+	then            
+                
+		featureCounts -a $gtf $fc_strand -p -o $counts/featureCounts_gene_counts.txt $star2/*sorted.bam
+                
+	else            
+		featureCounts -a $gtf $fc_strand -o $counts/featureCounts_gene_counts.txt $star2/*sorted.bam
+                
+	fi              
                         
        ##DESeq2         
                         
        ##add a prepfeatureCounts
                         
-#       if [ ! -d $deseq ]
-#       then             
-#                        
-#       	mkdir -p $deseq 
-#       fi               
-#                        
-#	prepfeatureCounts.R --counts=${counts}/featureCounts_gene_counts.txt --out=${counts}
-#	                
-#	cut -f2,3 $samples > $deseq/sample_sheet_for_debrowser.txt
-#                        
-#	DESeq2.R --counts=${counts}/featureCounts_for_DESeq2.csv --annotation=${counts}/gene_lengths.csv --species=${annotation} --fpkms=${cufflinks}/cufflink_fpkms_all_samples.csv --samples=${samples} --comparisons=${comparisons} --out=${deseq}
+       if [ ! -d $deseq ]
+       then             
+                        
+       	mkdir -p $deseq 
+       fi               
+                        
+	prepfeatureCounts.R --counts=${counts}/featureCounts_gene_counts.txt --out=${counts}
+	                
+	cut -f2,3 $samples > $deseq/sample_sheet_for_debrowser.txt
+                        
+	DESeq2.R --counts=${counts}/featureCounts_for_DESeq2.csv --annotation=${counts}/gene_lengths.csv --species=${annotation} --fpkms=${cufflinks}/cufflink_fpkms_all_samples.csv --samples=${samples} --comparisons=${comparisons} --out=${deseq}
 
 	if [ ! -d $enrich ]
 	then

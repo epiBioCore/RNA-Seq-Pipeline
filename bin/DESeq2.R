@@ -92,8 +92,6 @@ fpkms <- str_split(args[grep("--fpkms",args)],"=",simplify=T)[2]
 
 counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1,check.names = F)
 
-#counts<-read.csv(count_file,header=TRUE,stringsAsFactors=F,row.names=1)
-
 sample_info<-read.delim(sample_file,header=F,stringsAsFactors=F)
 gene_lengths <- read.csv(gene_lengths_file,header=T,stringsAsFactor=F,row.names = 1)
 
@@ -166,7 +164,8 @@ count_data_with_means <- data.frame(cbind(count_data,count_means),check.names=T)
 write.csv(count_data_with_means, file=file.path(out,'depthNormCount.csv'), quote=F)
 
 
-####same with fpkm
+###This code uses fpkms from DESeq2
+####same with fpkm 
 #fpkm_data <- fpkm(dds, robust=T)
 #colnames(fpkm_data) <- colData$replicate
 ## 
@@ -184,17 +183,16 @@ write.csv(count_data_with_means, file=file.path(out,'depthNormCount.csv'), quote
 #
 #write.csv(fpkm_data_with_means, file=file.path(out,'fpkm_values.csv'), quote=F)
 
+#####Currently using fpkms from cufflinks
+
 ##import table from cufflinks
 fpkms <- read.csv(fpkms,header=T,stringsAsFactors=F,check.names=F)
 idx <- fpkms$GeneID
 fpkms <- as.matrix(fpkms[,-1])
 rownames(fpkms) <- idx
-#fpkms <- fpkms[,-1]
 
-head(fpkms)
 ##first match the gene names in dds object to cufflinks fpkm table
 fpkm_data<-fpkms[match(rownames(count_data),rownames(fpkms)),]
-dim(fpkm_data)
 
 ##check that fpkm table is in same order as colData
 fpkm_data <- fpkm_data[,match(rownames(colData(dds)),colnames(fpkm_data))]
@@ -318,12 +316,13 @@ Res_with_means_fpkm <- lapply(Res_with_means_fpkm,function(x) {
 ###add annotation
 if(species == "mm10"){
 annot_file <- "/lower_bay/local_storage/annotation_db/Mus_musculus/UCSC/mm10/Annotation/Genes/mm10_gene_descriptions.txt"
+} else if (species == "hg19") {
+annot_file <- "/lower_bay/local_storage/annotation_db/Homo_sapiens/UCSC/hg19/Annotation/Genes/hg19_gene_descriptions.txt"
 }
 
 gene_descriptions <- read.delim(annot_file,header=T,stringsAsFactors=F)
 head(gene_descriptions)
 
-lapply(Res_with_means_fpkm,head)
 Res_with_annotations <- lapply(Res_with_means_fpkm,function(x) {
 			dplyr::left_join(x,gene_descriptions,by=c("GeneID"="external_gene_name"))
 			})
