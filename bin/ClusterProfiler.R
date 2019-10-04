@@ -23,19 +23,19 @@ names(DE)=gsub("_DEtable_ALL_genes.csv","",basename(lx))
 # orgDb
 
 if(org=="mm10") {
-  orgDb <- "org.Mm.eg.db"
-  kegg_ord <- "Mmu"
+  orgDb <- 'org.Mm.eg.db'
+  kegg_org <- "mmu"
   organism <- "Mus Musculus"
 }else if (org == "hg19") {
-  orgDb <-"org.Hs.eg.db"
-  kegg_ord <- "Hsa"
+  orgDb <-'org.Hs.eg.db'
+  kegg_org <- "hsa"
   organism <- "Homo Sapiens"
 } else {
   stop("Stop! Either no organism provided or organism is not supported.")
 }
 
 
-
+paste("The database used is:",orgDb)
 
 #Get gene lists of DE genes with entrezid added
 
@@ -47,7 +47,7 @@ genelists <- map2(DE,names(DE),function(i,x){
 
 sig_genes <-map(genelists,~subset(.x,padj <= 0.05))
 
-
+map(genelists,head)
 
 
 ###############GO term enrichment  for all three onologies, BP, CC, MF
