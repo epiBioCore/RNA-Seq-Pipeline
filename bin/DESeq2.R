@@ -318,14 +318,20 @@ if(species == "mm10"){
 annot_file <- "/lower_bay/local_storage/annotation_db/Mus_musculus/UCSC/mm10/Annotation/Genes/mm10_gene_descriptions.txt"
 } else if (species == "hg19") {
 annot_file <- "/lower_bay/local_storage/annotation_db/Homo_sapiens/UCSC/hg19/Annotation/Genes/hg19_gene_descriptions.txt"
-}
+} 
 
+
+if (exists(annot_file)) {
 gene_descriptions <- read.delim(annot_file,header=T,stringsAsFactors=F)
 head(gene_descriptions)
 
 Res_with_annotations <- lapply(Res_with_means_fpkm,function(x) {
 			dplyr::left_join(x,gene_descriptions,by=c("GeneID"="external_gene_name"))
 			})
+
+} else {
+Res_with_annotations <- Res_with_means_fpkm
+}
 
 lapply(Res_with_annotations,head)
 ###export all results
