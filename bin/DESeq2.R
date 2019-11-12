@@ -321,7 +321,7 @@ annot_file <- "/lower_bay/local_storage/annotation_db/Homo_sapiens/UCSC/hg19/Ann
 } 
 
 
-if (exists(annot_file)) {
+if (exists("annot_file")) {
 gene_descriptions <- read.delim(annot_file,header=T,stringsAsFactors=F)
 head(gene_descriptions)
 
