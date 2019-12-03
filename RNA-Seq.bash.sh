@@ -280,74 +280,22 @@ do
                 --outFileNamePrefix $star1/$i
 
 
-done
-
-
-###### STAR 2 pass
-
-if [ ! -d $star2index ]
-then
-	mkdir -p $star2index
-fi
-
-if [ ! -d $star2 ]
-then
-	mkdir -p $star2
-fi
-
-SJ_gtfs=$(ls $star1/*SJ.out.tab)
-
-STAR --runThreadN $threads \
-                --runMode genomeGenerate \
-                --genomeDir $star2index \
-                --genomeFastaFiles $genome \
-                --sjdbFileChrStartEnd $SJ_gtfs \
-                --sjdbGTFfile $gtf \
-                --sjdbOverhang $length
-
-
-
-for i in $(ls $trimmed_fastq/*[12]_at.fq.gz | cut -f3 -d "/" | sed 's/_[12]_at.fq.gz//g' | sort | uniq)
-do
-
-		reads=$(ls $trimmed_fastq/${i}*_at.fq.gz)
-	        echo aligning $i for the second time
-		
-                STAR --runThreadN $threads \
-                --genomeDir $star2index \
-                --readFilesIn $reads \
-                --readFilesCommand gunzip -c \
-                --runMode alignReads \
-                --outSAMattributes All \
-                --alignSJoverhangMin 8 \
-                --alignSJDBoverhangMin 1 \
-                --outFilterMismatchNmax 999 \
-                --outFilterMismatchNoverLmax 0.04 \
-                --alignIntronMin 20 \
-                --alignIntronMax 1000000 \
-                --alignMatesGapMax 1000000 \
-                --outSAMstrandField intronMotif \
-                --outSAMtype BAM SortedByCoordinate \
-                --outFileNamePrefix $star2/$i
-
-
 		if [ $se != "true" ]
 		then
 
-		samtools view -b -f 0x2 $star2/${i}Aligned.sortedByCoord.out.bam > $star2/${i}_properly_paired_sorted.bam
-                samtools index $star2/${i}_properly_paired_sorted.bam
+			samtools view -b -f 0x2 $star1/${i}Aligned.sortedByCoord.out.bam > $star1/${i}_properly_paired_sorted.bam
+                	samtools index $star2/${i}_properly_paired_sorted.bam
 
 		else
                 
-	        mv $star2/${i}Aligned.sortedByCoord.out.bam $star2/${i}_sorted.bam 
-		samtools index $star2/${i}_sorted.bam 
+	        	mv $star1/${i}Aligned.sortedByCoord.out.bam $star1/${i}_sorted.bam 
+			samtools index $star1/${i}_sorted.bam 
 	
 
 		fi
+
 done
 
-
-rm -r $star1 $star1index
 
 if [ "$bigwigs" = "true" ]
 then
@@ -402,7 +350,7 @@ then
 	lib="--library-type fr-secondstrand"
 fi	
 
-for file in $star2/*sorted.bam
+for file in $star1/*sorted.bam
 do
 	echo "running cufflinks on $file"
 
@@ -450,10 +398,10 @@ then
 	if [ "$se" != "true" ]
 	then            
                 
-		featureCounts -a $gtf $fc_strand -p -o $counts/featureCounts_gene_counts.txt $star2/*sorted.bam
+		featureCounts -a $gtf $fc_strand -p -o $counts/featureCounts_gene_counts.txt $star1/*sorted.bam
                 
 	else            
-		featureCounts -a $gtf $fc_strand -o $counts/featureCounts_gene_counts.txt $star2/*sorted.bam
+		featureCounts -a $gtf $fc_strand -o $counts/featureCounts_gene_counts.txt $star1/*sorted.bam
                 
 	fi              
                         
@@ -499,7 +447,7 @@ then
 	then
 
 
-	for i in $star2/*filtered_sortedByCoord.out.bam
+	for i in $star1/*sorted.bam
 	do
 		sample=$(basename $i _filtered_sortedByCoord.bam)
 		
@@ -507,7 +455,7 @@ then
 	done
 
 	else
-	for i in $star2/*Aligned_sortedByCoord.out.bam
+	for i in $star1/*Aligned_sortedByCoord.out.bam
         do
                 sample=$(basename $i Aligned_sortedByCoord.bam)
                 
@@ -531,7 +479,7 @@ then
 	then
 
 
-	for i in $star2/*filtered_sortedByCoord.out.bam
+	for i in $star1/*filtered_sortedByCoord.out.bam
 	do
 		sample=$(basename $i _filtered_sortedByCoord.bam)
 		
@@ -552,7 +500,7 @@ then
 	
 	else
 
-	for i in $star2/*Aligned_sortedByCoord.out.bam
+	for i in $star1/*Aligned_sortedByCoord.out.bam
         do
                 sample=$(basename $i Aligned_sortedByCoord.bam)
                 
@@ -584,7 +532,7 @@ fi
 
 cd $multiqc
 ln -s ../../$trimmed_fastq/*trimStats.txt .
-ln -s ../../$star2/*final.out .
+ln -s ../../$star1/*final.out .
 ln -s ../../$fastqc/*  .
 ln -s ../../$trimmed_fastq/*fastqc* .
 ln -s ../../$assembly/*tsv .
