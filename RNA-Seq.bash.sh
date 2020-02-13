@@ -1,6 +1,6 @@
 #!/bin/bash -ue
 
-samples=samples.txt
+samples=19-197_19-210_samples.txt
 threads=14
 length=150
 ##length is length of reads
@@ -8,7 +8,7 @@ genome=genome.fa
 gtf=genes.gtf
 deg=true
 splicing=false
-fastq=Complete_Set		
+fastq=Raw_fastq		
 comparisons=comparisons.txt
 strand=""
 ##strandness:
@@ -20,7 +20,7 @@ se=false
 outDir=RNA-Seq
 bigwigs=true
 ##select true to generate bigwigs
-annotation=mm10
+annotation=hg19
 #####
 
 #################
@@ -172,7 +172,7 @@ bw_dir=($outDir/BigWigs)
 multiqc=($outDir/Multiqc)
 enrich=($outDir/Cluster_Analysis)
 
-###############step1. FastQC
+##############step1. FastQC
 
 
 if [ ! -d $fastqc ]
@@ -182,7 +182,7 @@ fi
 
 
 
-fastqc -t 10 -o $fastqc $fastq/*gz
+#fastqc -t 10 -o $fastqc $fastq/I9134*gz
 
 
 ######## Step2. Remove adaptors
@@ -194,7 +194,7 @@ then
 fi
 
 
-while read -r sampleName coreNumber group r1 r2
+while read -r coreNumber sampleName group r1 r2
 do
 	if [ $se != "true" ]
 	then
@@ -280,11 +280,13 @@ do
                 --outFileNamePrefix $star1/$i
 
 
+
+		
 		if [ $se != "true" ]
 		then
 
 			samtools view -b -f 0x2 $star1/${i}Aligned.sortedByCoord.out.bam > $star1/${i}_properly_paired_sorted.bam
-                	samtools index $star2/${i}_properly_paired_sorted.bam
+                	samtools index $star1/${i}_properly_paired_sorted.bam
 
 		else
                 
@@ -305,7 +307,7 @@ then
 	fi
 
 
-	for file in $star2/*_sorted.bam
+	for file in $star1/*_sorted.bam
 	do
 
 		sample=$(echo $file | cut -f3 -d "/" | cut -f1 -d "_")
@@ -383,11 +385,11 @@ then
 	fi
 
 	fc_strand=""
-	if [ $strand = "rf" ]
+	if [ $fc_strand = "rf" ]
 	then
 	fc_strand="-s 2"
 
-	elif [ $strand = "fr" ]
+	elif [ $fc_strand = "fr" ]
 	then
 
 	fc_strand="-s 1"
@@ -541,7 +543,7 @@ ln -s ../../$deseq/*mq* .
 ln -s ../../$deseq/DE_summary.txt
 
 
-#multiqc -c ../../multiqc_config.yaml .
+multiqc -c ../../multiqc_config.yaml .
 cd -
 
 #get software versions
