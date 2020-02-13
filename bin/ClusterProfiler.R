@@ -85,6 +85,11 @@ KEGG <-map(sig_genes,function(x){
 })
 
 names(KEGG) <- paste0(names(KEGG),"_KEGG")
+
+KEGG <- KEGG[!sapply(KEGG,is.null)]
+KEGG <- lapply(KEGG,function(x) {
+setReadable(x,OrgDb = orgDb,keyType = "ENTREZID")
+})
 map2(KEGG,names(KEGG),function(i,x){write.table(i,file=file.path(out,paste0(x,".txt")), sep="\t", quote=F, row.names=F)} )
 
 
@@ -97,6 +102,8 @@ KEGG_mod=map(sig_genes,function(x){
 })
 
 names(KEGG_mod) <- paste0(names(KEGG_mod),"_KEGG_Module")
+KEGG_mod <- KEGG_mod[!sapply(KEGG_mod,is.null)]
+KEGG_mod <- lapply(KEGG_mod,function(x) setReadable(x,OrgDb = orgDb,keyType = "ENTREZID"))
 map2(KEGG_mod, names(KEGG_mod),function(i,x){write.table(i,file=file.path(out,paste0(x,".txt")), sep="\t", quote=F, row.names=F)} )
 
 ################ Gene set enrichment (GSEA)
@@ -190,34 +197,66 @@ safe_emapplot <- safely(emapplot)
 safe_cnetplot <- safely(cnetplot)
 safe_dotplot <- safely(dotplot)
 
-### then create a list the plotting functions 
-safeplot_lists <- list(barplot=safe_barplot,bartplot2=safe_barplot2, dotplot=safe_dotplot,emapplot=safe_emapplot,cnetplot=safe_cnetplot)
 
+
+### then create 2 lists of plotting functions: the pdfs then the pngs 
+safeplot_lists_pdf <- list(barplot=safe_barplot,bartplot2=safe_barplot2, dotplot=safe_dotplot)
+safeplot_lists_png <- list(emapplot=safe_emapplot,cnetplot=safe_cnetplot)
 
 
 ### put all all objects to be plotted together.
-plot_objects <- list(GO_enrich_ul,KEGG,KEGG_mod,GSEA,ewp)
+## give
+plot_objects <- list(GO_enrich_ul,KEGG=KEGG,KEGG_mod=KEGG_mod,GSEA=GSEA,ewp=ewp)
 plot_objects <- unlist(plot_objects,recursive = F)
 
 
 
-all_the_plots <- map(safeplot_lists,function(f) {
+###pdfs
+all_the_pdf_plots <- map(safeplot_lists_pdf,function(f) {
   map(plot_objects,function(enrich) {
     exec(f,enrich)
   })})
 
 
-all_the_plots <- transpose(all_the_plots)
-all_the_plots <- unlist(all_the_plots,recursive = F)
+all_the_pdf_plots <- transpose(all_the_pdf_plots)
+all_the_pdf_plots <- unlist(all_the_pdf_plots,recursive = F)
 
 
-plots_to_keep <- map_lgl(all_the_plots,function(x) is.null(x$error))
+pdf_plots_to_keep <- map_lgl(all_the_pdf_plots,function(x) is.null(x$error))
 
-plots_filtered <- all_the_plots[plots_to_keep]
+pdf_plots_filtered <- all_the_pdf_plots[pdf_plots_to_keep]
 
-map2(plots_filtered,names(plots_filtered),function(x,y) {
-  ggsave(x$result,file=file.path(out,paste0(y,".pdf")))
+map2(pdf_plots_filtered,names(pdf_plots_filtered),function(x,y) {
+    ggsave(x$result,file=file.path(out,paste0(y,".pdf")))
 })
+
+
+###pngs
+
+all_the_png_plots <- map(safeplot_lists_png,function(f) {
+  map(plot_objects,function(enrich) {
+    exec(f,enrich)
+  })})
+
+
+all_the_png_plots <- transpose(all_the_png_plots)
+all_the_png_plots <- unlist(all_the_png_plots,recursive = F)
+
+
+png_plots_to_keep <- map_lgl(all_the_png_plots,function(x) is.null(x$error))
+
+png_plots_filtered <- all_the_png_plots[png_plots_to_keep]
+
+map2(png_plots_filtered,names(png_plots_filtered),function(x,y) {
+    ggsave(x$result,width=7,height=7,file=file.path(out,paste0(y,".png")))
+})
+
+
+
+
+
+
+
 
 
 ##################save all of the enrichment objects
