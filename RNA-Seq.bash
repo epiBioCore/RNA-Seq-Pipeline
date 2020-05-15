@@ -1,12 +1,12 @@
 #!/bin/bash -ue
 
-samples=samples.txt
+samples=20-016_samples2.txt
 threads=14
 length=150
 ##length is length of reads
 genome=genome.fa
 gtf=genes.gtf
-deg=true
+deg=false
 splicing=false
 fastq=Raw_fastq		
 comparisons=comparisons.txt
@@ -163,7 +163,7 @@ star1=($outDir/STAR1pass)
 star1index=($outDir/STAR1index)
 star2=($outDir/STAR2pass)
 star2index=($outDir/STAR2index)
-cufflinks=($outDir/Cufflinks)
+cuffnorm=($outDir/Cuffnorm)
 counts=($outDir/Counts)
 assembly=($outDir/Assembly)
 ballgown=($outDir/Ballgown)
@@ -182,7 +182,7 @@ fi
 
 
 
-fastqc -t 10 -o $fastqc $fastq/*gz
+#fastqc -t 10 -o $fastqc $fastq/*gz
 
 
 ######## Step2. Remove adaptors
@@ -321,10 +321,10 @@ fi
 
 ##get expression using cufflinks
 
-if [ ! -d $cufflinks ]
+if [ ! -d $cuffnorm ]
 then
 
-	mkdir $cufflinks
+	mkdir $cuffnorm
 fi
 
 lib=""
@@ -343,31 +343,29 @@ lib="--library-type fr-secondstrand"
 fi
 
 
-
-if [ "$strand" = "rf" ]
-then
-	lib="--library-type fr-firststrand"
-elif [ "$strand" = "fr" ]
-then
-	lib="--library-type fr-secondstrand"
-fi	
-
-for file in $star1/*sorted.bam
-do
-	echo "running cufflinks on $file"
-
-	sample=$(echo $file | cut -f3 -d "/" | cut -f1 -d "_")
-	cufflinks -p $threads -o $cufflinks/$sample \
-           -G $gtf \
-           -b $genome \
-           -u \
-           $lib \
-           $file 2> $cufflinks/${sample}_stderr.txt
-done
+files=$(ls $star1/*sorted.bam)
+cuffnorm -o $cuffnorm -p $threads $lib $gtf $files
 
 
-#combine
-combineCufflinksFpkms.R in=$cufflinks
+
+
+
+#for file in $star1/*sorted.bam
+#do
+#	echo "running cufflinks on $file"
+#
+#	sample=$(echo $file | cut -f3 -d "/" | cut -f1 -d "_")
+#	cufflinks -p $threads -o $cufflinks/$sample \
+#           -G $gtf \
+#           -b $genome \
+#           -u \
+#           $lib \
+#           $file 2> $cufflinks/${sample}_stderr.txt
+#done
+#
+#
+##combine
+#combineCufflinksFpkms.R in=$cufflinks
 
 
 
