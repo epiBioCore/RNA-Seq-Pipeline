@@ -182,7 +182,7 @@ fi
 
 
 
-#fastqc -t 10 -o $fastqc $fastq/*gz
+fastqc -t 10 -o $fastqc $fastq/*gz
 
 
 ######## Step2. Remove adaptors
